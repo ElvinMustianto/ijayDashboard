@@ -47,6 +47,12 @@ export default {
   emits: ['toggle-sidebar', 'logout'],
   methods: {
     handleLogout() {
+      // 🔹 Hapus semua token dan info user
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
+
+      // 🔹 Emit event ke parent supaya parent bisa redirect ke login
       this.$emit('logout')
     }
   }

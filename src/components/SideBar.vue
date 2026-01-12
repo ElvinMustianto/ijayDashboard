@@ -14,8 +14,8 @@
         <a
           href="#"
           class="nav-link d-flex align-items-center text-white py-2 px-3 rounded"
-          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': activeItem === 'dashboard' }"
-          @click.prevent="navigate('dashboard')"
+          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': isActive('Dashboard') }"
+          @click.prevent="navigate('Dashboard')"
         >
           <i class="bi bi-speedometer2 me-2"></i>
           Dashboard
@@ -25,8 +25,8 @@
         <a
           href="#"
           class="nav-link d-flex align-items-center text-white py-2 px-3 rounded"
-          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': activeItem === 'product' }"
-          @click.prevent="navigate('product')"
+          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': isActive('Product') }"
+          @click.prevent="navigate('Product')"
         >
           <i class="bi bi-box-seam me-2"></i>
           Product
@@ -36,8 +36,8 @@
         <a
           href="#"
           class="nav-link d-flex align-items-center text-white py-2 px-3 rounded"
-          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': activeItem === 'image' }"
-          @click.prevent="navigate('image')"
+          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': isActive('Image') }"
+          @click.prevent="navigate('Image')"
         >
           <i class="bi bi-images me-2"></i>
           Image
@@ -47,8 +47,8 @@
         <a
           href="#"
           class="nav-link d-flex align-items-center text-white py-2 px-3 rounded"
-          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': activeItem === 'company' }"
-          @click.prevent="navigate('company')"
+          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': isActive('Company') }"
+          @click.prevent="navigate('Company')"
         >
           <i class="bi bi-building me-2"></i>
           Company
@@ -72,22 +72,22 @@
     </div>
     <ul class="nav flex-column px-3 py-3">
       <li class="nav-item mb-1">
-        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('dashboard')">
+        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('Dashboard')">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
       </li>
       <li class="nav-item mb-1">
-        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('product')">
+        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('Product')">
           <i class="bi bi-box-seam me-2"></i> Product
         </a>
       </li>
       <li class="nav-item mb-1">
-        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('image')">
+        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('Image')">
           <i class="bi bi-images me-2"></i> Image
         </a>
       </li>
       <li class="nav-item mb-1">
-        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('company')">
+        <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('Company')">
           <i class="bi bi-building me-2"></i> Company
         </a>
       </li>
@@ -102,25 +102,27 @@ export default {
     sidebarOpen: Boolean,
     isDesktop: Boolean
   },
-  emits: ['update:sidebarOpen', 'navigate'], // ← tambahkan 'navigate'
   data() {
     return {
-      activeItem: 'dashboard'
+      activeItem: 'Dashboard'
     }
   },
   methods: {
-    navigate(view) {
-      this.activeItem = view
-      this.$emit('navigate', view) // ← emit ke parent
+    navigate(routeName) {
+      this.activeItem = routeName
+      this.$router.push({ name: routeName })
     },
-    navigateAndClose(view) {
-      this.navigate(view)
+    navigateAndClose(routeName) {
+      this.navigate(routeName)
       this.$emit('update:sidebarOpen', false) // tutup sidebar di mobile
     },
     closeMobile() {
       if (!this.isDesktop) {
         this.$emit('update:sidebarOpen', false)
       }
+    },
+    isActive(name) {
+      return this.activeItem === name
     }
   }
 }
