@@ -1,3 +1,4 @@
+<!-- src/components/Header.vue -->
 <template>
   <nav class="navbar navbar-expand-md navbar-dark bg-dark px-3 shadow-sm">
     <div class="container-fluid p-0">
@@ -47,12 +48,9 @@ export default {
   emits: ['toggle-sidebar', 'logout'],
   methods: {
     handleLogout() {
-      // 🔹 Hapus semua token dan info user
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
-
-      // 🔹 Emit event ke parent supaya parent bisa redirect ke login
       this.$emit('logout')
     }
   }

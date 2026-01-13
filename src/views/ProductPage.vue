@@ -27,10 +27,11 @@
 
         <!-- Products Table -->
         <div v-else class="table-responsive">
-          <table class="table table-hover">
+          <table class="table table-hover align-middle">
             <thead>
               <tr>
                 <th>#</th>
+                <th>Images</th>
                 <th>Name</th>
                 <th>Price</th>
                 <th>Status</th>
@@ -40,6 +41,25 @@
             <tbody>
               <tr v-for="(item, index) in products" :key="item._id || item.tempId">
                 <td>{{ index + 1 }}</td>
+                <td>
+                  <div v-if="item.images && item.images.length > 0" class="d-flex flex-wrap gap-1" style="max-width: 150px">
+                    <img
+                      v-for="(img, idx) in visibleImages(item.images)"
+                      :key="img._id || idx"
+                      :src="img.url"
+                      alt="Product"
+                      class="rounded"
+                      style="width: 40px; height: 40px; object-fit: cover;"
+                    />
+                    <div v-if="item.images.length > 3" class="d-flex align-items-center justify-content-center rounded bg-light text-muted"
+                         style="width: 40px; height: 40px; font-size: 12px;">
+                      +{{ item.images.length - 3 }}
+                    </div>
+                  </div>
+                  <div v-else class="text-muted d-flex align-items-center" style="width: 40px; height: 40px;">
+                    <i class="bi bi-image" style="font-size: 20px;"></i>
+                  </div>
+                </td>
                 <td>{{ item.name }}</td>
                 <td>Rp {{ item.price.toLocaleString() }}</td>
                 <td>
@@ -48,6 +68,10 @@
                   </span>
                 </td>
                 <td>
+                  <!-- View Button -->
+                  <button class="btn btn-sm btn-info me-1" @click="openDetailModal(item)">
+                    <i class="bi bi-eye"></i>
+                  </button>
                   <button class="btn btn-sm btn-outline-primary me-1" @click="openEditModal(item)">
                     <i class="bi bi-pencil"></i>
                   </button>
@@ -62,18 +86,18 @@
       </div>
     </div>
 
-    <!-- Modal Add/Edit -->
-    <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true" ref="modal">
+    <!-- Modal: Add/Edit Product -->
+    <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true" ref="productModal">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <form @submit.prevent="saveProduct">
             <div class="modal-header">
               <h5 class="modal-title">{{ editingProduct._id ? 'Edit Product' : 'Add Product' }}</h5>
-              <button type="button" class="btn-close" @click="closeModal"></button>
+              <button type="button" class="btn-close" @click="closeModal('product')"></button>
             </div>
             <div class="modal-body">
               <div class="mb-3">
-                <label class="form-label">Name</label>
+                <label class="form-label">Name *</label>
                 <input v-model="editingProduct.name" type="text" class="form-control" required />
               </div>
 
@@ -84,18 +108,18 @@
 
               <div class="row">
                 <div class="col-md-6 mb-3">
-                  <label class="form-label">Price</label>
-                  <input v-model.number="editingProduct.price" type="number" class="form-control" required />
+                  <label class="form-label">Price *</label>
+                  <input v-model.number="editingProduct.price" type="number" class="form-control" required min="0" />
                 </div>
                 <div class="col-md-6 mb-3">
                   <label class="form-label">Discount Price</label>
-                  <input v-model.number="editingProduct.discountPrice" type="number" class="form-control" />
+                  <input v-model.number="editingProduct.discountPrice" type="number" class="form-control" min="0" />
                 </div>
               </div>
 
               <div class="mb-3">
                 <label class="form-label">Stock</label>
-                <input v-model.number="editingProduct.stock" type="number" class="form-control" />
+                <input v-model.number="editingProduct.stock" type="number" class="form-control" min="0" />
               </div>
 
               <div class="mb-3 form-check form-switch">
@@ -103,31 +127,102 @@
                 <label class="form-check-label" for="isActiveSwitch">Active</label>
               </div>
 
+              <!-- Images Section -->
               <div class="mb-3">
-                <label class="form-label">Images</label>
-                <div class="d-flex flex-wrap gap-2">
+                <label class="form-label">Images (Max: 5)</label>
+                <div class="d-flex flex-wrap gap-2 mb-2">
                   <!-- Existing images -->
-                  <div v-for="img in editingProduct.images || []" :key="img._id" class="position-relative">
+                  <div v-for="(img, idx) in editingProduct.images" :key="img._id || idx" class="position-relative">
                     <img :src="img.url" alt="Product Image" class="rounded" style="width:100px;height:100px;object-fit:cover;" />
-                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" @click="removeImage(img._id)">
+                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" @click="removeExistingImage(idx)">
                       <i class="bi bi-x-lg"></i>
                     </button>
                   </div>
 
-                  <!-- Upload new images -->
-                  <input type="file" multiple @change="handleImageUpload" class="form-control" />
+                  <!-- New image previews -->
+                  <div v-for="(file, idx) in newImagePreviews" :key="`new-${idx}`" class="position-relative">
+                    <img :src="file" alt="New Preview" class="rounded" style="width:100px;height:100px;object-fit:cover;" />
+                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" @click="removeNewImage(idx)">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
                 </div>
+
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  @change="handleImageUpload"
+                  class="form-control"
+                  :disabled="totalImageCount >= 5"
+                />
+                <small class="text-muted">Maximum 5 images allowed.</small>
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
-              <button type="submit" class="btn btn-primary">Save</button>
+              <button type="button" class="btn btn-secondary" @click="closeModal('product')">Cancel</button>
+              <button type="submit" class="btn btn-primary" :disabled="isSaving">
+                {{ isSaving ? 'Saving...' : 'Save' }}
+              </button>
             </div>
           </form>
         </div>
       </div>
     </div>
 
+    <!-- Modal: Product Detail (View Only) -->
+    <div class="modal fade" id="productDetailModal" tabindex="-1" aria-hidden="true" ref="productDetailModal">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Product Details</h5>
+            <button type="button" class="btn-close" @click="closeModal('detail')"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6>Name</h6>
+                <p>{{ viewingProduct.name }}</p>
+
+                <h6>Description</h6>
+                <p>{{ viewingProduct.description || '-' }}</p>
+
+                <h6>Price</h6>
+                <p>Rp {{ viewingProduct.price?.toLocaleString() || '0' }}</p>
+
+                <h6>Discount Price</h6>
+                <p>Rp {{ viewingProduct.discountPrice?.toLocaleString() || '-' }}</p>
+
+                <h6>Stock</h6>
+                <p>{{ viewingProduct.stock || '0' }}</p>
+
+                <h6>Status</h6>
+                <span :class="`badge ${viewingProduct.isActive ? 'bg-success' : 'bg-warning'}`">
+                  {{ viewingProduct.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
+              <div class="col-md-6">
+                <h6>Images</h6>
+                <div v-if="viewingProduct.images && viewingProduct.images.length > 0" class="d-flex flex-wrap gap-2">
+                  <img
+                    v-for="(img, idx) in viewingProduct.images"
+                    :key="img._id || idx"
+                    :src="img.url"
+                    alt="Product"
+                    class="rounded"
+                    style="width: 100px; height: 100px; object-fit: cover;"
+                  />
+                </div>
+                <p v-else class="text-muted">No images available.</p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeModal('detail')">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -142,22 +237,48 @@ export default {
       products: [],
       loading: false,
       error: '',
-      editingProduct: {}, // Produk yang sedang ditambah/di edit
-      newImages: [], // File image baru yang akan diupload
-      modalInstance: null
+      isSaving: false,
+
+      // For edit/add
+      editingProduct: {},
+      newImageFiles: [],
+      newImagePreviews: [],
+
+      // For view
+      viewingProduct: {},
+
+      // Modal instances
+      productModal: null,
+      productDetailModal: null
+    }
+  },
+  computed: {
+    totalImageCount() {
+      return (this.editingProduct.images?.length || 0) + this.newImagePreviews.length
     }
   },
   methods: {
+    visibleImages(images) {
+      return images.slice(0, 3)
+    },
+
     async fetchProducts() {
       this.loading = true
       this.error = ''
       try {
         const res = await getProducts()
-        this.products = (res.data.data || []).map(p => ({
-          ...p,
-          tempId: p._id || Date.now() + Math.random(),
-          images: p.image ? [p.image] : []
-        }))
+        // 🔹 Perbaikan utama: trim URL gambar & pastikan struktur konsisten
+        this.products = (res.data.data || []).map(p => {
+          const cleanImages = (p.images || []).map(img => ({
+            ...img,
+            url: img.url ? img.url.trim() : ''
+          }))
+          return {
+            ...p,
+            images: cleanImages,
+            tempId: p._id || Date.now() + Math.random()
+          }
+        })
       } catch (err) {
         this.error = err.response?.data?.message || 'Failed to load products.'
       } finally {
@@ -166,62 +287,120 @@ export default {
     },
 
     openAddModal() {
-      this.editingProduct = { name: '', description: '', price: 0, discountPrice: 0, stock: 0, isActive: true, images: [] }
-      this.newImages = []
-      this.showModal()
+      this.editingProduct = {
+        name: '',
+        description: '',
+        price: 0,
+        discountPrice: 0,
+        stock: 0,
+        isActive: true,
+        images: []
+      }
+      this.newImageFiles = []
+      this.newImagePreviews = []
+      this.showModal('product')
     },
 
     openEditModal(product) {
-      this.editingProduct = JSON.parse(JSON.stringify(product))
-      this.newImages = []
-      this.showModal()
+      // Deep clone & pastikan URL sudah bersih
+      const cloned = JSON.parse(JSON.stringify(product))
+      cloned.images = (cloned.images || []).map(img => ({
+        ...img,
+        url: img.url ? img.url.trim() : ''
+      }))
+      this.editingProduct = cloned
+      this.newImageFiles = []
+      this.newImagePreviews = []
+      this.showModal('product')
     },
 
-    showModal() {
-      if (!this.modalInstance) {
-        this.modalInstance = new Modal(this.$refs.modal)
+    openDetailModal(product) {
+      // Pastikan URL gambar di modal detail juga bersih
+      const cleanProduct = { ...product }
+      cleanProduct.images = (product.images || []).map(img => ({
+        ...img,
+        url: img.url ? img.url.trim() : ''
+      }))
+      this.viewingProduct = cleanProduct
+      this.showModal('detail')
+    },
+
+    showModal(type) {
+      if (type === 'product') {
+        if (!this.productModal) {
+          this.productModal = new Modal(this.$refs.productModal)
+        }
+        this.productModal.show()
+      } else if (type === 'detail') {
+        if (!this.productDetailModal) {
+          this.productDetailModal = new Modal(this.$refs.productDetailModal)
+        }
+        this.productDetailModal.show()
       }
-      this.modalInstance.show()
     },
 
-    closeModal() {
-      if (this.modalInstance) this.modalInstance.hide()
+    closeModal(type) {
+      if (type === 'product') {
+        this.productModal?.hide()
+      } else if (type === 'detail') {
+        this.productDetailModal?.hide()
+      }
     },
 
     handleImageUpload(e) {
-      this.newImages = Array.from(e.target.files)
+      const files = Array.from(e.target.files)
+      const remainingSlots = 5 - this.totalImageCount
+      if (remainingSlots <= 0) {
+        alert('Maximum 5 images allowed.')
+        return
+      }
+      const allowedFiles = files.slice(0, remainingSlots)
+      this.newImageFiles.push(...allowedFiles)
+      allowedFiles.forEach(file => {
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          this.newImagePreviews.push(ev.target.result)
+        }
+        reader.readAsDataURL(file)
+      })
+      e.target.value = ''
     },
 
-    removeImage(imageId) {
-      this.editingProduct.images = this.editingProduct.images.filter(img => img._id !== imageId)
+    removeExistingImage(index) {
+      this.editingProduct.images.splice(index, 1)
+    },
+
+    removeNewImage(index) {
+      this.newImageFiles.splice(index, 1)
+      this.newImagePreviews.splice(index, 1)
     },
 
     async saveProduct() {
+      this.isSaving = true
       try {
         const formData = new FormData()
         formData.append('name', this.editingProduct.name)
-        formData.append('description', this.editingProduct.description)
+        if (this.editingProduct.description) formData.append('description', this.editingProduct.description)
         formData.append('price', this.editingProduct.price)
-        formData.append('discountPrice', this.editingProduct.discountPrice)
-        formData.append('stock', this.editingProduct.stock)
+        if (this.editingProduct.discountPrice) formData.append('discountPrice', this.editingProduct.discountPrice)
+        if (this.editingProduct.stock) formData.append('stock', this.editingProduct.stock)
         formData.append('isActive', this.editingProduct.isActive)
-
-        this.newImages.forEach(file => {
+        this.newImageFiles.forEach(file => {
           formData.append('images', file)
         })
 
         if (this.editingProduct._id) {
-          // Update product
           await updateProduct(this.editingProduct._id, formData)
         } else {
-          // Create new product
           await createProduct(formData)
         }
 
-        this.fetchProducts()
-        this.closeModal()
+        await this.fetchProducts()
+        this.closeModal('product')
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to save product.')
+      } finally {
+        this.isSaving = false
       }
     },
 

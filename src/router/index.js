@@ -3,7 +3,6 @@ import LoginView from '@/views/LoginView.vue'
 import DashboardLayout from '@/layouts/dashboardLayout.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import ProductPage from '@/views/ProductPage.vue'
-import ImagePage from '@/views/ImagePage.vue'
 import CompanyPage from '@/views/CompanyPage.vue'
 
 const routes = [
@@ -18,7 +17,6 @@ const routes = [
     children: [
       { path: '', name: 'Dashboard', component: DashboardView },
       { path: 'product', name: 'Product', component: ProductPage },
-      { path: 'image', name: 'Image', component: ImagePage },
       { path: 'company', name: 'Company', component: CompanyPage }
     ]
   }

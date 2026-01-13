@@ -2,13 +2,24 @@
   <main class="p-3 p-md-4 flex-grow-1">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h4 class="fw-bold text-dark">Company Management</h4>
-      <button class="btn btn-primary">
-        <i class="bi bi-building-add me-1"></i> Add Company
-      </button>
+      <div>
+        <button class="btn btn-primary me-2" @click="openAddModal">
+          <i class="bi bi-building-add me-1"></i> Add Company
+        </button>
+      </div>
     </div>
 
-    <div class="row g-4">
-      <div class="col-12 col-md-6 col-lg-4" v-for="company in companies" :key="company.id">
+    <!-- Loading & Error -->
+    <div v-if="loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+    <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
+
+    <!-- Companies List -->
+    <div class="row g-4" v-else>
+      <div class="col-12 col-md-6 col-lg-4" v-for="(company, index) in companies" :key="company.id || company.tempId">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-body">
             <div class="d-flex align-items-start mb-3">
@@ -16,18 +27,23 @@
                 <i class="bi bi-building fs-4 text-primary"></i>
               </div>
               <div>
-                <h5 class="mb-1">{{ company.name }}</h5>
+                <h5 class="mb-1">{{ index + 1 }}. {{ company.name }}</h5>
                 <p class="text-muted small mb-0">{{ company.industry }}</p>
               </div>
             </div>
-            <p class="text-muted small">{{ company.address }}</p>
+            <p class="text-muted small">{{ formatAddress(company.address) }}</p>
             <div class="mt-3 d-flex justify-content-between align-items-center">
-              <span class="badge bg-info">{{ company.status }}</span>
+              <span class="badge" :class="company.isActive ? 'bg-success' : 'bg-warning'">
+                {{ company.isActive ? 'Active' : 'Inactive' }}
+              </span>
               <div>
-                <button class="btn btn-sm btn-outline-primary me-1">
+                <button class="btn btn-sm btn-outline-info me-1" @click="openDetailModal(company)">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary me-1" @click="openEditModal(company)">
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger">
+                <button class="btn btn-sm btn-outline-danger" @click="handleDelete(company.id || company.tempId)">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -36,38 +52,248 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Add/Edit -->
+    <div class="modal fade" id="companyModal" tabindex="-1" aria-hidden="true" ref="modal">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <form @submit.prevent="saveCompany">
+            <div class="modal-header">
+              <h5 class="modal-title">{{ editingCompany.id ? 'Edit Company' : 'Add Company' }}</h5>
+              <button type="button" class="btn-close" @click="closeModal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Company Name</label>
+                  <input v-model="editingCompany.name" type="text" class="form-control" required />
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Industry</label>
+                  <input v-model="editingCompany.industry" type="text" class="form-control" />
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Email</label>
+                  <input v-model="editingCompany.email" type="email" class="form-control" />
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Phone</label>
+                  <input v-model="editingCompany.phone" type="text" class="form-control" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Address</label>
+                  <textarea v-model="editingCompany.addressText" class="form-control"></textarea>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Vision</label>
+                  <textarea v-model="editingCompany.vision" class="form-control"></textarea>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Description</label>
+                  <textarea v-model="editingCompany.description" class="form-control"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Mission (separate with ;)</label>
+                  <textarea v-model="editingCompany.missionText" class="form-control"></textarea>
+                </div>
+                <div class="col-12 form-check form-switch">
+                  <input v-model="editingCompany.isActive" type="checkbox" class="form-check-input" id="statusSwitch">
+                  <label class="form-check-label" for="statusSwitch">
+                    {{ editingCompany.isActive ? 'Active' : 'Inactive' }}
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Detail -->
+<div class="modal fade" id="companyDetailModal" tabindex="-1" aria-hidden="true" ref="detailModal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ detailCompany.name }}</h5>
+        <button type="button" class="btn-close" @click="closeDetailModal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <strong>Industry:</strong>
+            <p>{{ detailCompany.industry || '-' }}</p>
+          </div>
+          <div class="col-12 col-md-6">
+            <strong>Status:</strong>
+            <p>
+              <span :class="detailCompany.isActive ? 'badge bg-success' : 'badge bg-warning'">
+                {{ detailCompany.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </p>
+          </div>
+          <div class="col-12 col-md-6">
+            <strong>Email:</strong>
+            <p>{{ detailCompany.email || '-' }}</p>
+          </div>
+          <div class="col-12 col-md-6">
+            <strong>Phone:</strong>
+            <p>{{ detailCompany.phone || '-' }}</p>
+          </div>
+          <div class="col-12">
+            <strong>Address:</strong>
+            <p>{{ formatAddress(detailCompany.address) || '-' }}</p>
+          </div>
+          <div class="col-12">
+            <strong>Vision:</strong>
+            <p>{{ detailCompany.vision || '-' }}</p>
+          </div>
+          <div class="col-12">
+            <strong>Description:</strong>
+            <p>{{ detailCompany.description || '-' }}</p>
+          </div>
+          <div class="col-12" v-if="detailCompany.mission && detailCompany.mission.length">
+            <strong>Mission:</strong>
+            <ul class="mb-0">
+              <li v-for="(m, idx) in detailCompany.mission" :key="idx">{{ m }}</li>
+            </ul>
+          </div>
+          <div class="col-12" v-else>
+            <strong>Mission:</strong>
+            <p>-</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" @click="closeDetailModal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
   </main>
 </template>
 
 <script>
+import { getCompanies, createCompany, updateCompany, deleteCompany } from '@/services/company.service.js'
+import { Modal } from 'bootstrap'
+
 export default {
   name: 'CompanyPage',
   data() {
     return {
-      companies: [
-        {
-          id: 1,
-          name: 'PT Reka Cipta Selera',
-          industry: 'Food & Beverage',
-          address: 'Jl. Sudirman No. 123, Jakarta',
-          status: 'Active'
-        },
-        {
-          id: 2,
-          name: 'CV Digital Solusi',
-          industry: 'IT Services',
-          address: 'Jl. Gatot Subroto No. 45, Bandung',
-          status: 'Active'
-        },
-        {
-          id: 3,
-          name: 'UD Mandiri Jaya',
-          industry: 'Retail',
-          address: 'Jl. Diponegoro No. 78, Surabaya',
-          status: 'Inactive'
-        }
-      ]
+      companies: [],
+      loading: false,
+      error: '',
+      editingCompany: {},
+      detailCompany: {},
+      modalInstance: null,
+      detailModalInstance: null,
     }
+  },
+  methods: {
+    async fetchCompanies() {
+      this.loading = true
+      this.error = ''
+      try {
+        const res = await getCompanies()
+        this.companies = (res.data.data || []).map(c => ({
+          ...c,
+          tempId: c.id || Date.now() + Math.random()
+        }))
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Failed to load companies.'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    formatAddress(addr) {
+      if (!addr) return ''
+      return `${addr.street || ''}, ${addr.city || ''}, ${addr.province || ''}`
+    },
+
+    openAddModal() {
+      this.editingCompany = { name: '', industry: '', email: '', phone: '', addressText: '', vision: '', description: '', missionText: '', isActive: true }
+      this.showModal()
+    },
+
+    openEditModal(company) {
+      this.editingCompany = {
+        ...company,
+        addressText: company.address ? `${company.address.street}, ${company.address.city}, ${company.address.province}` : '',
+        missionText: company.mission ? company.mission.join('; ') : ''
+      }
+      this.showModal()
+    },
+
+    showModal() {
+      if (!this.modalInstance) this.modalInstance = new Modal(this.$refs.modal)
+      this.modalInstance.show()
+    },
+
+    closeModal() {
+      if (this.modalInstance) this.modalInstance.hide()
+    },
+
+    openDetailModal(company) {
+      this.detailCompany = { ...company }
+      if (!this.detailModalInstance) this.detailModalInstance = new Modal(this.$refs.detailModal)
+      this.detailModalInstance.show()
+    },
+
+    closeDetailModal() {
+      if (this.detailModalInstance) this.detailModalInstance.hide()
+    },
+
+    async saveCompany() {
+      try {
+        const payload = {
+          name: this.editingCompany.name,
+          industry: this.editingCompany.industry,
+          email: this.editingCompany.email,
+          phone: this.editingCompany.phone,
+          vision: this.editingCompany.vision,
+          description: this.editingCompany.description,
+          mission: this.editingCompany.missionText.split(';').map(m => m.trim()).filter(Boolean),
+          isActive: this.editingCompany.isActive,
+          address: {
+            street: this.editingCompany.addressText.split(',')[0]?.trim() || '',
+            city: this.editingCompany.addressText.split(',')[1]?.trim() || '',
+            province: this.editingCompany.addressText.split(',')[2]?.trim() || '',
+            country: 'Indonesia'
+          }
+        }
+
+        if (this.editingCompany.id) {
+          await updateCompany(this.editingCompany.id, payload)
+        } else {
+          await createCompany(payload)
+        }
+
+        this.fetchCompanies()
+        this.closeModal()
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to save company.')
+      }
+    },
+
+    async handleDelete(id) {
+      if (!confirm('Are you sure you want to delete this company?')) return
+      try {
+        await deleteCompany(id)
+        this.companies = this.companies.filter(c => (c.id || c.tempId) !== id)
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to delete company.')
+      }
+    }
+  },
+  mounted() {
+    this.fetchCompanies()
   }
 }
 </script>

@@ -36,17 +36,6 @@
         <a
           href="#"
           class="nav-link d-flex align-items-center text-white py-2 px-3 rounded"
-          :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': isActive('Image') }"
-          @click.prevent="navigate('Image')"
-        >
-          <i class="bi bi-images me-2"></i>
-          Image
-        </a>
-      </li>
-      <li class="nav-item mb-1">
-        <a
-          href="#"
-          class="nav-link d-flex align-items-center text-white py-2 px-3 rounded"
           :class="{ 'bg-primary bg-opacity-25 border-start border-3 border-primary': isActive('Company') }"
           @click.prevent="navigate('Company')"
         >
