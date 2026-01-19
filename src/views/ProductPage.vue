@@ -43,14 +43,15 @@
                 <td>{{ index + 1 }}</td>
                 <td>
                   <div v-if="item.images && item.images.length > 0" class="d-flex flex-wrap gap-1" style="max-width: 150px">
-                    <img
-                      v-for="(img, idx) in visibleImages(item.images)"
-                      :key="img._id || idx"
-                      :src="img.url"
-                      alt="Product"
-                      class="rounded"
-                      style="width: 40px; height: 40px; object-fit: cover;"
-                    />
+                    <div v-for="(img, idx) in visibleImages(item.images)" :key="img._id || idx" class="position-relative">
+                      <img
+                        :src="img.url"
+                        alt="Product"
+                        class="rounded"
+                        style="width: 40px; height: 40px; object-fit: cover;"
+                      />
+                      <span v-if="img.isPrimary" class="position-absolute top-0 start-0 bg-success text-white rounded-circle" style="font-size:8px;width:12px;height:12px;line-height:1;">★</span>
+                    </div>
                     <div v-if="item.images.length > 3" class="d-flex align-items-center justify-content-center rounded bg-light text-muted"
                          style="width: 40px; height: 40px; font-size: 12px;">
                       +{{ item.images.length - 3 }}
@@ -134,9 +135,33 @@
                   <!-- Existing images -->
                   <div v-for="(img, idx) in editingProduct.images" :key="img._id || idx" class="position-relative">
                     <img :src="img.url" alt="Product Image" class="rounded" style="width:100px;height:100px;object-fit:cover;" />
-                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" @click="removeExistingImage(idx)">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
+                    
+                    <!-- Primary indicator -->
+                    <div v-if="img.isPrimary" class="position-absolute top-0 start-0 bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+                         style="width: 24px; height: 24px; font-size: 12px;">
+                      ★
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="position-absolute bottom-0 start-0 w-100 d-flex justify-content-between px-1">
+                      <button
+                        v-if="!img.isPrimary"
+                        type="button"
+                        class="btn btn-sm btn-outline-warning p-1"
+                        @click="makePrimary(img._id)"
+                        title="Set as primary"
+                      >
+                        <i class="bi bi-star"></i>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-danger p-1"
+                        @click="removeExistingImage(idx)"
+                        title="Remove image"
+                      >
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
                   </div>
 
                   <!-- New image previews -->
@@ -204,14 +229,15 @@
               <div class="col-md-6">
                 <h6>Images</h6>
                 <div v-if="viewingProduct.images && viewingProduct.images.length > 0" class="d-flex flex-wrap gap-2">
-                  <img
-                    v-for="(img, idx) in viewingProduct.images"
-                    :key="img._id || idx"
-                    :src="img.url"
-                    alt="Product"
-                    class="rounded"
-                    style="width: 100px; height: 100px; object-fit: cover;"
-                  />
+                  <div v-for="(img, idx) in viewingProduct.images" :key="img._id || idx" class="position-relative">
+                    <img
+                      :src="img.url"
+                      alt="Product"
+                      class="rounded"
+                      style="width: 100px; height: 100px; object-fit: cover;"
+                    />
+                    <span v-if="img.isPrimary" class="position-absolute top-0 start-0 bg-success text-white rounded-circle" style="font-size:10px;width:20px;height:20px;line-height:1.2;">★</span>
+                  </div>
                 </div>
                 <p v-else class="text-muted">No images available.</p>
               </div>
@@ -226,8 +252,11 @@
   </main>
 </template>
 
+<!-- ... template tetap sama ... -->
+
 <script>
 import { getProducts, deleteProduct, createProduct, updateProduct } from '@/services/product.service.js'
+import { setPrimaryImage } from '@/services/image.service.js'
 import { Modal } from 'bootstrap'
 
 export default {
@@ -238,16 +267,10 @@ export default {
       loading: false,
       error: '',
       isSaving: false,
-
-      // For edit/add
       editingProduct: {},
       newImageFiles: [],
       newImagePreviews: [],
-
-      // For view
       viewingProduct: {},
-
-      // Modal instances
       productModal: null,
       productDetailModal: null
     }
@@ -267,18 +290,15 @@ export default {
       this.error = ''
       try {
         const res = await getProducts()
-        // 🔹 Perbaikan utama: trim URL gambar & pastikan struktur konsisten
-        this.products = (res.data.data || []).map(p => {
-          const cleanImages = (p.images || []).map(img => ({
+        this.products = (res.data.data || []).map(p => ({
+          ...p,
+          images: (p.images || []).map(img => ({
             ...img,
-            url: img.url ? img.url.trim() : ''
-          }))
-          return {
-            ...p,
-            images: cleanImages,
-            tempId: p._id || Date.now() + Math.random()
-          }
-        })
+            url: img.url?.trim() || '',
+            isPrimary: Boolean(img.isPrimary)
+          })),
+          tempId: p._id || Date.now() + Math.random()
+        }))
       } catch (err) {
         this.error = err.response?.data?.message || 'Failed to load products.'
       } finally {
@@ -301,27 +321,40 @@ export default {
       this.showModal('product')
     },
 
+    // ✅ PERBAIKAN UTAMA: Hindari JSON.parse(JSON.stringify)
     openEditModal(product) {
-      // Deep clone & pastikan URL sudah bersih
-      const cloned = JSON.parse(JSON.stringify(product))
-      cloned.images = (cloned.images || []).map(img => ({
-        ...img,
-        url: img.url ? img.url.trim() : ''
-      }))
-      this.editingProduct = cloned
+      // Salin hanya field yang diperlukan, pastikan _id gambar tetap ada
+      this.editingProduct = {
+        _id: product._id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        discountPrice: product.discountPrice,
+        stock: product.stock,
+        isActive: product.isActive,
+        images: (product.images || []).map(img => ({
+          _id: img._id,           // ← JANGAN HILANGKAN INI!
+          url: img.url?.trim() || '',
+          isPrimary: Boolean(img.isPrimary),
+          // Opsional: salin field lain jika diperlukan di UI
+          publicId: img.publicId,
+          filename: img.filename
+        }))
+      }
       this.newImageFiles = []
       this.newImagePreviews = []
       this.showModal('product')
     },
 
     openDetailModal(product) {
-      // Pastikan URL gambar di modal detail juga bersih
-      const cleanProduct = { ...product }
-      cleanProduct.images = (product.images || []).map(img => ({
-        ...img,
-        url: img.url ? img.url.trim() : ''
-      }))
-      this.viewingProduct = cleanProduct
+      this.viewingProduct = {
+        ...product,
+        images: (product.images || []).map(img => ({
+          ...img,
+          url: img.url?.trim() || '',
+          isPrimary: Boolean(img.isPrimary)
+        }))
+      }
       this.showModal('detail')
     },
 
@@ -375,16 +408,39 @@ export default {
       this.newImagePreviews.splice(index, 1)
     },
 
+    // ✅ PERBAIKAN: Tambahkan validasi & logging
+    async makePrimary(imageId) {
+      if (!imageId) {
+        alert('Image ID is missing. Please refresh the page.')
+        return
+      }
+
+      try {
+        await setPrimaryImage(imageId)
+        // Update local state
+        this.editingProduct.images = this.editingProduct.images.map(img => ({
+          ...img,
+          isPrimary: img._id === imageId
+        }))
+        // Opsional: sukses feedback
+        // console.log('Primary image updated:', imageId)
+      } catch (err) {
+        console.error('Set primary error:', err)
+        const msg = err.response?.data?.message || 'Failed to set primary image.'
+        alert(msg)
+      }
+    },
+
     async saveProduct() {
       this.isSaving = true
       try {
         const formData = new FormData()
         formData.append('name', this.editingProduct.name)
         if (this.editingProduct.description) formData.append('description', this.editingProduct.description)
-        formData.append('price', this.editingProduct.price)
-        if (this.editingProduct.discountPrice) formData.append('discountPrice', this.editingProduct.discountPrice)
-        if (this.editingProduct.stock) formData.append('stock', this.editingProduct.stock)
-        formData.append('isActive', this.editingProduct.isActive)
+        formData.append('price', String(this.editingProduct.price))
+        if (this.editingProduct.discountPrice) formData.append('discountPrice', String(this.editingProduct.discountPrice))
+        if (this.editingProduct.stock != null) formData.append('stock', String(this.editingProduct.stock))
+        formData.append('isActive', String(this.editingProduct.isActive))
         this.newImageFiles.forEach(file => {
           formData.append('images', file)
         })
@@ -398,6 +454,7 @@ export default {
         await this.fetchProducts()
         this.closeModal('product')
       } catch (err) {
+        console.error('Save product error:', err)
         alert(err.response?.data?.message || 'Failed to save product.')
       } finally {
         this.isSaving = false

@@ -2,14 +2,18 @@
   <!-- Desktop Sidebar -->
   <aside
     v-if="isDesktop"
-    class="bg-dark text-white position-fixed top-0 start-0 h-100"
+    class="text-white position-fixed top-0 start-0 h-100"
     :class="{ 'd-none': !sidebarOpen }"
-    style="width: 250px; z-index: 1030"
+    style="width: 250px; z-index: 1030; background-color: #0d2b4e;"
   >
-    <div class="p-3 border-bottom border-secondary">
-      <h5 class="mb-0 fw-bold">Admin Panel</h5>
+    <div class="p-3 border-bottom" style="border-color: rgba(255,255,255,0.1);">
+      <!-- 🔹 Logo di tengah -->
+      <div class="d-flex justify-content-center">
+        <img src="/images/logo.jpeg" alt="Logo" height="66" width="150" />
+      </div>
     </div>
     <ul class="nav flex-column px-3 py-3">
+      <!-- ... menu tetap sama ... -->
       <li class="nav-item mb-1">
         <a
           href="#"
@@ -50,16 +54,21 @@
   <aside
     v-else
     v-show="sidebarOpen"
-    class="bg-dark text-white position-fixed top-0 start-0 w-100 h-100"
-    style="z-index: 1040"
+    class="text-white position-fixed top-0 start-0 w-100 h-100"
+    style="z-index: 1040; background-color: #0d2b4e;"
   >
-    <div class="p-3 d-flex justify-content-between align-items-center border-bottom border-secondary">
-      <h5 class="mb-0 fw-bold">Menu</h5>
+    <div class="p-3 d-flex justify-content-between align-items-center border-bottom" style="border-color: rgba(255,255,255,0.1);">
+      <!-- 🔹 Di mobile, tetap tampilkan "Menu" di sebelah logo -->
+      <div class="d-flex align-items-center">
+        <img src="/images/logo.jpeg" alt="Logo" height="46" class="me-2" />
+        <h5 class="mb-0 fw-bold">Menu</h5>
+      </div>
       <button class="btn text-white" @click="closeMobile">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
     <ul class="nav flex-column px-3 py-3">
+      <!-- ... menu mobile tetap sama ... -->
       <li class="nav-item mb-1">
         <a href="#" class="nav-link d-flex align-items-center text-white py-2 px-3" @click.prevent="navigateAndClose('Dashboard')">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
@@ -103,7 +112,7 @@ export default {
     },
     navigateAndClose(routeName) {
       this.navigate(routeName)
-      this.$emit('update:sidebarOpen', false) // tutup sidebar di mobile
+      this.$emit('update:sidebarOpen', false)
     },
     closeMobile() {
       if (!this.isDesktop) {

@@ -1,6 +1,6 @@
 <!-- src/components/Header.vue -->
 <template>
-  <nav class="navbar navbar-expand-md navbar-dark bg-dark px-3 shadow-sm">
+  <nav class="navbar navbar-expand-md navbar-dark px-3 shadow-sm" style="background-color: #0d2b4e;">
     <div class="container-fluid p-0">
       <button
         class="btn text-white me-2"
